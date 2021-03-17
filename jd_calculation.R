@@ -1,3 +1,6 @@
+# Version 0.4 (2021-03-15)
+
+
 library(RJDemetra)
 suppressPackageStartupMessages(library(RJDemetra3))
 
@@ -16,6 +19,27 @@ if (exists("workspace")) {
   stop("Please provide the link either to your workspace in the object \"workspace\" or
        to a rda file with your data in ts format in the object \"data_file\".")
 }
+  # Periodicity
+  frequ        <- unique(sapply(ts, frequency))
+  if(any(frequ != 12 & frequ != 4)) stop("Only monthly and quarterly series are currently supported by JD3.")
+
+  # Zeros
+  if (exists("ts_warn")) rm(ts_warn)
+  if(any(sapply(ts, function(z) any(z == 0)))) ts_warn <- "Some series contain zeros."
+  # Missing values
+  if(any(sapply(ts, function(z) any(is.na(z))))) {
+    if(exists("ts_warn")) {
+      ts_warn <- paste(ts_warn, "Some series contain missing values.")
+    } else ts_warn <- "Some series contain missing values."}
+  # Negative values
+  if(any(sapply(ts, function(z) any(z < 0)))) {
+    if(exists("ts_warn")) {
+      ts_warn <- paste(ts_warn, "Some series contain negative values.")
+    } else ts_warn <- "Some series contain negative values."}
+  if(exists("ts_warn")) {
+    ts_warn <- paste(ts_warn, "Calculation of growth rates might be affected misleadingly.")
+    warning(ts_warn)
+    }
 
 
 # Test of specification ############################
@@ -33,6 +57,10 @@ if (!valid_spec) {
 }
 
 
+# Names of series ############################
+if(length(names(ts))!=length(ts)) names(ts) <- paste("Series", c(1:length(ts)))
+
+
 # Seasonal adjustment ############################
 if (METHOD == "X13") {
     jd2 <- lapply(ts, function(z){RJDemetra::x13(z,SPEC)})                                                       # JD+2
@@ -43,16 +71,16 @@ if (METHOD == "X13") {
 }
 
 # seasonally adjusted series
-sa_jd2 <- sapply(jd2, function(z){z$final$series[,2]})                                                            # JD+2
+sa_jd2 <- lapply(jd2, function(z){z$final$series[,2]})                                                            # JD+2
 if (METHOD == "X13") {                                                                                            # JD+3
-  sa_jd3 <- sapply(jd3, function(z){z$final$d11final})
+  sa_jd3 <- lapply(jd3, function(z){z$final$d11final})
 } else {
-  sa_jd3 <- sapply(jd3, function(z){z$final$sa$data})
+  sa_jd3 <- lapply(jd3, function(z){z$final$sa$data})
 }
 
 # monthly growth rates
-jd2_gr <- sapply(sa_jd2, function(z){(z/lag(z)-1)*100})                                                           # JD+2
-jd3_gr <- sapply(sa_jd3, function(z){(z/lag(z)-1)*100})                                                           # JD+3
+jd2_gr <- lapply(sa_jd2, function(z){(z/lag(z, -1)-1)*100})                                                           # JD+2
+jd3_gr <- lapply(sa_jd3, function(z){(z/lag(z, -1)-1)*100})                                                           # JD+3
 
 
 # extract further information ############################
@@ -69,22 +97,22 @@ jd3_gr <- sapply(sa_jd3, function(z){(z/lag(z)-1)*100})                         
 
     # ARIMA model
     jd2_model <- sapply(jd2, function(z){paste("(",
-                                               z$regarima$arma[[1]],
-                                               z$regarima$arma[[2]],
-                                               z$regarima$arma[[3]],
+                                               z$regarima$arma["p"],
+                                               z$regarima$arma["d"],
+                                               z$regarima$arma["q"],
                                                ") (",
-                                               z$regarima$arma[[4]],
-                                               z$regarima$arma[[5]],
-                                               z$regarima$arma[[6]],
+                                               z$regarima$arma["bp"],
+                                               z$regarima$arma["bd"],
+                                               z$regarima$arma["bq"],
                                                ")", sep = "")})                                                   # JD+2
     jd3_model <- sapply(jd3, function(z){paste("(",
                                                z$preprocessing$sarima$p,
                                                z$preprocessing$sarima$d,
                                                z$preprocessing$sarima$q,
                                                ") (",
-                                               z$preprocessing$sarima$p,
-                                               z$preprocessing$sarima$d,
-                                               z$preprocessing$sarima$q,
+                                               z$preprocessing$sarima$bp,
+                                               z$preprocessing$sarima$bd,
+                                               z$preprocessing$sarima$bq,
                                                ")", sep = "")})                                                   # JD+3
 
     # Number of outliers
@@ -134,8 +162,8 @@ jd3_gr <- sapply(sa_jd3, function(z){(z/lag(z)-1)*100})                         
 mdgr   <- mapply(function(z1, z2){mean(z1-z2,                    trim=TRIM,na.rm=T)}, jd2_gr,   jd3_gr)   # average difference in growth rates
 madgr  <- mapply(function(z1, z2){mean(abs(z1-z2),               trim=TRIM,na.rm=T)}, jd2_gr,   jd3_gr)   # average absolute difference in growth rates
 cohgr  <- mapply(function(z1, z2){mean(ifelse(z1*z2<=0,0,1)*100, trim=TRIM,na.rm=T)}, jd2_gr,   jd3_gr)   # coherence rate of growth rates
-mpd    <- mapply(function(z1, z2){mean((z1-z2)/z2,               trim=TRIM,na.rm=T)}, jd2_gr,   jd3_gr)   # mean percentage difference
-mapd   <- mapply(function(z1, z2){mean(abs((z1-z2)/z2),          trim=TRIM,na.rm=T)}, jd2_gr,   jd3_gr)   # mean absolute percentage difference
+mpd    <- mapply(function(z1, z2){mean((z1-z2)/z2,               trim=TRIM,na.rm=T)}, sa_jd2,   sa_jd3)   # mean percentage difference
+mapd   <- mapply(function(z1, z2){mean(abs((z1-z2)/z2),          trim=TRIM,na.rm=T)}, sa_jd2,   sa_jd3)   # mean absolute percentage difference
 
 ll_dif    <- mapply(function(z1, z2){(z1-z2)*100/z2}, jd2_ll, jd3_ll)      # Percentage difference of log-likelihood
 trans_sh  <- sum(jd3_log   == jd2_log)   *100/length(jd3_log)              # Share of same transformations
@@ -143,7 +171,7 @@ model_sh  <- sum(jd3_model == jd2_model) *100/length(jd3_model)            # Sha
 td_sh     <- sum(jd3_td    == jd2_td)    *100/length(jd3_td)               # Share of same trading day regressors included
 lp_sh     <- sum(jd3_leap  == jd2_leap)  *100/length(jd3_leap)             # Share of same leap year regressors included
 east_sh   <- sum(jd3_east  == jd2_east)  *100/length(jd3_east)             # Share of same easter regressors included
-out_dif   <- mapply(function(z1, z2){(z1-z2)*100}, jd2_outl, jd3_outl)     # Difference of outliers identified
+out_dif   <- mapply(function(z1, z2){(z1-z2)}, jd2_outl, jd3_outl)         # Difference of outliers identified
 tf_sh     <- sum(jd3_tf    == jd2_tf)    *100/length(jd3_tf)               # Share of same trend filter used
 
 
@@ -171,7 +199,7 @@ colnames(tab1) <- c("Indicator", "")
     # - This table shows a time series specific comparison of selected parameters.
     # It will not be reported and is forseen for internal analysis of the detected differences.
 tab2 <- data.frame(jd_names, jd2_log, jd2_mean, jd2_model, jd2_sf, jd2_tf,
-                   jd3_log, jd3_mean, jd3_model, jd3_sf, jd2_tf,
+                   jd3_log, jd3_mean, jd3_model, jd3_sf, jd3_tf,
                    row.names = NULL)
 colnames(tab2) <- c("Series", rep(c("Log", "Mean", "Model", "SF", "TF"),2))
 
@@ -181,4 +209,7 @@ colnames(tab2) <- c("Series", rep(c("Log", "Mean", "Model", "SF", "TF"),2))
 tab3 <- data.frame(jd_names, round(cbind(mdgr, madgr, cohgr, mpd, mapd), DIGI),
                    row.names = NULL)
 colnames(tab3) <- c("Series", "MDGR","MADGR","COHGR","MPD","MAPD")
+
+
+
 

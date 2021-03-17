@@ -27,18 +27,18 @@ Department  <- "General Economic Statistics"      # Department's name
 Author      <- "Jan Heller"                       # Author's name
 
 # Information on the investigated indicator
-INDICATOR    <- "Output in Industry"              # The investigated indicator (ONLY alphanumeric characters and blanks)
-addINFO      <- ""                                # Additional information
+INDICATOR   <- "Output in Industry"               # The investigated indicator (ONLY alphanumeric characters and blanks)
+addINFO     <- ""                                 # Additional information
                                                     # Information, you would like to integrate in the pdf report for a better understanding
                                                     # of the comparision of your data
 
 # Specification settings
-METHOD       <- "X13"                             # Which Method is used in the Test: X13 or TS
-SPEC         <- "RSA5"                            # Name of default specification
-                                                    # Elective specifications for X13: {X11, RSA0, RSA1, RSA2, RSA3, RSA4, RSA5}
+METHOD      <- "X13"                              # Which Method is used in the Test: X13 or TS
+SPEC        <- "RSA5c"                            # Name of default specification
+                                                    # Elective specifications for X13: {X11, RSA0, RSA1, RSA2c, RSA3, RSA4c, RSA5c}
                                                     # Elective specifications for TS:  {RSA0, RSA1, RSA2, RSA3, RSA4, RSA5, RSAfull}
 # Name of the pdf-output
-OUTPUTNAME   <- "BBk_JD+3 comparison"            # First part of name of the LaTeX and PDF file
+OUTPUTNAME  <- "BBk_JD+3 comparison"              # First part of name of the LaTeX and PDF file
 
 
 
@@ -48,7 +48,7 @@ OUTPUTNAME   <- "BBk_JD+3 comparison"            # First part of name of the LaT
 
 TRIM     = 0.00     # trimmed mean
 DIGI     = 2        # number of digits in tables
-
+WARN     = TRUE     # test on zeros, missing and negative values
 
 
 #################################################

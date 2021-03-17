@@ -2,7 +2,7 @@
 
 ## load required packages ############################
     library(xtable)
-
+    options(xtable.comment = FALSE)
 ##  Institution and time series profile  ############################
 
   # additional modules for institution profile (first table) not to be manually entered by user
@@ -10,19 +10,28 @@
     SoftwareNEW  <- "JD+ 3.0"                         # The new software to be analysed
     SoftwareUsed <- paste0(SoftwareNEW," and ",SoftwareOLD)
 
-    frequ        <- unique(sapply(ts, frequency))    # Periodicity of the investigated series
-    if (frequ==12){
-      Periodicity  <-  "monthly"
-    } else if (frequ==4){
-      Periodicity  <-  "quarterly"
+   # Periodicity of the investigated series
+    if (length(frequ)==1) {
+      if (frequ==12){
+        Periodicity  <-  "monthly"
+      } else if (frequ==4){
+        Periodicity  <-  "quarterly"
+      } else if (frequ==2){
+        Periodicity  <-  "biannualy"
+      } else {
+        Periodicity  <-  "other"
+      }
     } else {
       Periodicity  <-  "mixed"
     }
-    NoTS         <-  length(ts)                       # Nomber of time series that are seasonally adjusted
-
-    Domain         <- INDICATOR
+    NoTS        <-  length(ts)                       # Nomber of time series that are seasonally adjusted
+    Domain      <- INDICATOR  <-  gsub("[^0-9A-Za-z]","" , INDICATOR ,ignore.case = TRUE)
 
     # Transformation
+    if(METHOD == "X13" & SPEC == "RSA2") SPEC <- "RSA2c"
+    if(METHOD == "X13" & SPEC == "RSA4") SPEC <- "RSA4c"
+    if(METHOD == "X13" & SPEC == "RSA5") SPEC <- "RSA5c"
+
     if (SPEC=="RSA0" | SPEC=="X11") {
       TRANSFORM    <- "NA"
     } else {
@@ -32,14 +41,14 @@
     # ARIMA
     if (SPEC=="X11") {
       ARIMAMDL     <- "NA"
-    } else if (SPEC=="RSA1" | SPEC=="RSA2" | SPEC=="RSA3"){
+    } else if (SPEC=="RSA1" | SPEC=="RSA2" | SPEC=="RSA2c" | SPEC=="RSA3"){
       ARIMAMDL     <- "Airline + mean"
-    } else { # SPEC==RSA5full
+    } else {
       ARIMAMDL     <- "Auto"
     }
 
     # Calendar adjustment
-    if (SPEC=="X11" | SPEC=="RSA0" | SPEC=="RSA1" | SPEC=="RSA2" | SPEC=="RSA3") {
+    if (SPEC=="X11" | SPEC=="RSA0" | SPEC=="RSA1" | SPEC=="RSA2" | SPEC=="RSA2c" | SPEC=="RSA3") {
       CALENDAR     <- "No"
     } else {
       CALENDAR     <- "Yes"
@@ -48,9 +57,9 @@
     # Regressors
     if (SPEC=="X11" | SPEC=="RSA0" | SPEC=="RSA1" | SPEC=="RSA3") {
       REGRESSORS     <- "NA"
-    } else if (SPEC=="RSA2" | SPEC=="RSA4"){
+    } else if  (SPEC=="RSA2" | SPEC=="RSA2c" | SPEC=="RSA4" | SPEC=="RSA4c"){
       REGRESSORS     <- "2 TD + Easter"
-    } else if (SPEC=="RSA5"){
+    } else if (SPEC=="RSA5" | SPEC=="RSA5c"){
       REGRESSORS     <- "7 TD + Easter"
     } else {
       REGRESSORS     <- "Auto"
@@ -124,6 +133,12 @@
                                        IndicatorsUsed2,
                                        addINFO))
 
+    if (exists("ts_warn") & WARN == TRUE) {
+      ts_warn_vector <- unlist(strsplit(ts_warn, "[.]"))
+      tabQu1b <- data.frame(Name = c("WARNING", rep("", length(ts_warn_vector)-1)),
+                            Character = ts_warn_vector)
+      tabQu1 <- rbind(tabQu1, tabQu1b)
+      }
 
     tabQu <- toLatex(xtable(tabQu1, caption="Details on procedure", align="ll|l"),caption.placement = "top",
                          include.rownames=F,include.colnames = F)
@@ -135,7 +150,7 @@
                       "{\\footnotesize Continued on next page}\n", "\\endfoot\n", "\\endlastfoot\n")
     add.to.row$command <- command
 
-    tabSMRYa<- toLatex(xtable(tab1, caption=paste0("Summary table for ",INDICATOR," using ", METHOD, " specification ", SPEC), align = "ll|r"),
+    tabSMRYa<- toLatex(xtable(tab1, digits = DIGI, caption=paste0("Summary table for ",INDICATOR," using ", METHOD, " specification ", SPEC), align = "ll|r"),
                        caption.placement = "top",include.rownames=F,include.colnames = T)
 
 
